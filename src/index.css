@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #020817;
+    --card: #ffffff;
+    --card-foreground: #020817;
+    --popover: #ffffff;
+    --popover-foreground: #020817;
+    --primary: #000000;
+    --primary-foreground: #ffffff;
+    --secondary: #f1f5f9;
+    --secondary-foreground: #0f172a;
+    --accent: #f1f5f9;
+    --accent-foreground: #0f172a;
+    --border: #e2e8f0;
+    --input: #e2e8f0;
+    --ring: #020817;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: #020817;
+    --foreground: #ffffff;
+    --card: #0f172a;
+    --card-foreground: #ffffff;
+    --popover: #0f172a;
+    --popover-foreground: #ffffff;
+    --primary: #ffffff;
+    --primary-foreground: #020817;
+    --secondary: #1e293b;
+    --secondary-foreground: #ffffff;
+    --accent: #1e293b;
+    --accent-foreground: #ffffff;
+    --border: #1e293b;
+    --input: #1e293b;
+    --ring: #cbd5e1;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .geist-card {
+    @apply bg-card border border-border rounded-lg transition-all duration-200;
+  }
+
+  .geist-card:hover {
+    @apply border-secondary shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)];
+  }
+
+  .geist-button {
+    @apply px-4 h-9 inline-flex items-center justify-center rounded-md text-sm font-medium transition-all 
+    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .geist-button-black {
+    @apply geist-button bg-primary text-primary-foreground hover:bg-secondary hover:text-secondary-foreground;
+  }
+
+  .geist-button-white {
+    @apply geist-button bg-card text-card-foreground border border-border hover:border-secondary;
+  }
+
+  .geist-input {
+    @apply w-full px-3 h-9 bg-background border border-input rounded-md text-sm transition-all
+    focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent;
+  }
+
+  .geist-input::placeholder {
+    @apply text-secondary-foreground opacity-60;
+  }
+
+  .geist-select {
+    @apply geist-input appearance-none pr-8 cursor-pointer;
+  }
+
+  .readme-badge {
+    @apply relative inline-flex items-center;
+  }
+
+  .readme-badge::after {
+    content: '';
+    @apply absolute -right-1.5 -top-1.5 w-2.5 h-2.5 bg-primary rounded-full;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: .5;
+      transform: scale(1.2);
+    }
+  }
+}
+
+@layer utilities {
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.5s ease-out forwards;
+  }
+
+  .animate-ping-slow {
+    animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes ping {
+    75%, 100% {
+      transform: scale(1.5);
+      opacity: 0;
+    }
+  }
+}
