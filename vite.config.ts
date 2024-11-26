@@ -7,4 +7,17 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  build: {
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['/react/', '/react-dom/', '/lucide-react/'],
+        },
+      },
+    },
+  },
 });
