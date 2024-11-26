@@ -16,7 +16,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['/react/', '/react-dom/', '/lucide-react/'],
+          vendor: ['react', 'react-dom', 'lucide-react'],
         },
       },
     },
