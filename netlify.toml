@@ -6,6 +6,7 @@
 [build.environment]
   NODE_VERSION = "18"
   NPM_FLAGS = "--legacy-peer-deps --no-optional"
+  GO_IMPORT_PATH = ""
 
 [functions]
   node_bundler = "esbuild"
