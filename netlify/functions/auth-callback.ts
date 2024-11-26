@@ -22,6 +22,15 @@ const handler: Handler = async (event) => {
       };
     }
 
+    // Verify environment variables
+    if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
+      console.error('Missing required environment variables');
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: 'Server configuration error' }),
+      };
+    }
+
     // Exchange code for access token
     const tokenResponse = await fetch(GITHUB_TOKEN_URL, {
       method: 'POST',
@@ -39,38 +48,51 @@ const handler: Handler = async (event) => {
     const tokenData = await tokenResponse.json();
 
     if (tokenData.error) {
+      console.error('GitHub token error:', tokenData.error);
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: tokenData.error_description }),
+        body: JSON.stringify({ error: tokenData.error_description || 'Failed to get access token' }),
       };
     }
 
-    // Get user data with the access token
+    const accessToken = tokenData.access_token;
+
+    // Get user data
     const userResponse = await fetch(GITHUB_USER_URL, {
       headers: {
-        Authorization: `token ${tokenData.access_token}`,
-        Accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        'User-Agent': 'DevFinder-App',
       },
     });
 
     const userData = await userResponse.json();
 
-    // Return both the token and user data
+    if (userData.error) {
+      console.error('GitHub user data error:', userData.error);
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Failed to get user data' }),
+      };
+    }
+
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({
-        token: tokenData.access_token,
-        user: userData,
+        token: accessToken,
+        user: {
+          id: userData.id,
+          login: userData.login,
+          avatar_url: userData.avatar_url,
+          name: userData.name,
+          email: userData.email,
+        },
       }),
     };
   } catch (error) {
     console.error('Auth callback error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Internal Server Error' }),
+      body: JSON.stringify({ error: 'Internal server error' }),
     };
   }
 };
