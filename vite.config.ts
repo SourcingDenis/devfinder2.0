@@ -8,6 +8,7 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   build: {
+    sourcemap: true,
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true
@@ -20,4 +21,8 @@ export default defineConfig({
       },
     },
   },
+  server: {
+    port: 3000,
+    host: true
+  }
 });
