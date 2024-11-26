@@ -1,7 +1,6 @@
 import { GitHubUser } from '../types/github';
 
 const GITHUB_API_URL = 'https://api.github.com';
-const GITHUB_TOKEN = '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';
 const STATS_SAMPLE_SIZE = 100;
 
 interface SearchUsersResponse {
@@ -11,15 +10,24 @@ interface SearchUsersResponse {
   stats_items?: any[];
 }
 
-async function findEmailInCommits(username: string, repoName: string): Promise<string | null> {
+function getAuthHeaders(token?: string) {
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github.v3+json',
+  };
+  
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  
+  return headers;
+}
+
+async function findEmailInCommits(username: string, repoName: string, token: string): Promise<string | null> {
   try {
     const commitsResponse = await fetch(
       `${GITHUB_API_URL}/repos/${username}/${repoName}/commits?author=${username}&per_page=10`,
       {
-        headers: {
-          Authorization: `Bearer ${GITHUB_TOKEN}`,
-          Accept: 'application/vnd.github.v3+json',
-        },
+        headers: getAuthHeaders(token),
       }
     );
 
@@ -46,15 +54,12 @@ async function findEmailInCommits(username: string, repoName: string): Promise<s
   }
 }
 
-export async function getCommitEmail(username: string): Promise<string | null> {
+export async function getCommitEmail(username: string, token: string): Promise<string | null> {
   try {
     const reposResponse = await fetch(
       `${GITHUB_API_URL}/users/${username}/repos?type=owner&sort=pushed&per_page=10`,
       {
-        headers: {
-          Authorization: `Bearer ${GITHUB_TOKEN}`,
-          Accept: 'application/vnd.github.v3+json',
-        },
+        headers: getAuthHeaders(token),
       }
     );
 
@@ -69,17 +74,14 @@ export async function getCommitEmail(username: string): Promise<string | null> {
       .sort((a: any, b: any) => new Date(b.pushed_at).getTime() - new Date(a.pushed_at).getTime());
 
     for (const repo of ownRepos) {
-      const email = await findEmailInCommits(username, repo.name);
+      const email = await findEmailInCommits(username, repo.name, token);
       if (email) return email;
     }
 
     const eventsResponse = await fetch(
       `${GITHUB_API_URL}/users/${username}/events/public`,
       {
-        headers: {
-          Authorization: `Bearer ${GITHUB_TOKEN}`,
-          Accept: 'application/vnd.github.v3+json',
-        },
+        headers: getAuthHeaders(token),
       }
     );
 
@@ -110,7 +112,8 @@ export async function searchUsers(
   query: string,
   filters: Record<string, string>,
   page: number = 1,
-  fetchStats: boolean = false
+  fetchStats: boolean = false,
+  token?: string
 ): Promise<SearchUsersResponse> {
   let q = query;
 
@@ -129,10 +132,7 @@ export async function searchUsers(
   });
 
   const displayResponse = await fetch(`${GITHUB_API_URL}/search/users?${displayParams}`, {
-    headers: {
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
-      Accept: 'application/vnd.github.v3+json',
-    },
+    headers: getAuthHeaders(token),
   });
 
   if (!displayResponse.ok) {
@@ -157,10 +157,7 @@ export async function searchUsers(
       
       statsPromises.push(
         fetch(`${GITHUB_API_URL}/search/users?${statsParams}`, {
-          headers: {
-            Authorization: `Bearer ${GITHUB_TOKEN}`,
-            Accept: 'application/vnd.github.v3+json',
-          },
+          headers: getAuthHeaders(token),
         }).then(res => res.json())
       );
     }
@@ -176,8 +173,8 @@ export async function searchUsers(
   const detailedUsers = await Promise.all(
     displayData.items.map(async (user: any) => {
       const [userDetails, readme] = await Promise.all([
-        getUserDetails(user.login),
-        getUserReadme(user.login),
+        getUserDetails(user.login, token),
+        getUserReadme(user.login, token),
       ]);
       return {
         ...user,
@@ -189,7 +186,7 @@ export async function searchUsers(
 
   const detailedStatsUsers = await Promise.all(
     statsItems.map(async (user: any) => {
-      const userDetails = await getUserDetails(user.login);
+      const userDetails = await getUserDetails(user.login, token);
       return {
         ...user,
         ...userDetails,
@@ -204,12 +201,9 @@ export async function searchUsers(
   };
 }
 
-async function getUserDetails(username: string) {
+async function getUserDetails(username: string, token: string) {
   const response = await fetch(`${GITHUB_API_URL}/users/${username}`, {
-    headers: {
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
-      Accept: 'application/vnd.github.v3+json',
-    },
+    headers: getAuthHeaders(token),
   });
 
   if (!response.ok) {
@@ -219,8 +213,8 @@ async function getUserDetails(username: string) {
   const userData = await response.json();
 
   const [activityData, starredCount] = await Promise.all([
-    getUserActivity(username),
-    getUserStarredCount(username),
+    getUserActivity(username, token),
+    getUserStarredCount(username, token),
   ]);
 
   return {
@@ -230,14 +224,11 @@ async function getUserDetails(username: string) {
   };
 }
 
-async function getUserActivity(username: string) {
+async function getUserActivity(username: string, token: string) {
   const reposResponse = await fetch(
     `${GITHUB_API_URL}/users/${username}/repos?per_page=10&sort=updated`,
     {
-      headers: {
-        Authorization: `Bearer ${GITHUB_TOKEN}`,
-        Accept: 'application/vnd.github.v3+json',
-      },
+      headers: getAuthHeaders(token),
     }
   );
 
@@ -257,14 +248,11 @@ async function getUserActivity(username: string) {
   };
 }
 
-async function getUserStarredCount(username: string) {
+async function getUserStarredCount(username: string, token: string) {
   const response = await fetch(
     `${GITHUB_API_URL}/users/${username}/starred?per_page=1`,
     {
-      headers: {
-        Authorization: `Bearer ${GITHUB_TOKEN}`,
-        Accept: 'application/vnd.github.v3+json',
-      },
+      headers: getAuthHeaders(token),
     }
   );
 
@@ -281,15 +269,12 @@ async function getUserStarredCount(username: string) {
   return matches ? parseInt(matches[1], 10) : 0;
 }
 
-async function getUserReadme(username: string): Promise<string | null> {
+async function getUserReadme(username: string, token: string): Promise<string | null> {
   try {
     const response = await fetch(
       `${GITHUB_API_URL}/repos/${username}/${username}/readme`,
       {
-        headers: {
-          Authorization: `Bearer ${GITHUB_TOKEN}`,
-          Accept: 'application/vnd.github.v3.raw+json',
-        },
+        headers: getAuthHeaders(token),
       }
     );
 

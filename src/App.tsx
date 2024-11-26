@@ -8,8 +8,11 @@ import HeroSection from './components/HeroSection';
 import { searchUsers } from './services/github';
 import { calculateSeniorityScore } from './utils/seniorityScore';
 import type { GitHubUser } from './types/github';
+import { useAuth } from './context/AuthContext';
+import { initiateGitHubAuth } from './services/auth';
 
 function App() {
+  const { isAuthenticated, token, isLoading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<GitHubUser[]>([]);
   const [statsUsers, setStatsUsers] = useState<GitHubUser[]>([]);
@@ -18,7 +21,6 @@ function App() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeLanguage, setActiveLanguage] = useState('');
   const [activeSeniorityLevel, setActiveSeniorityLevel] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
@@ -74,6 +76,11 @@ function App() {
       return;
     }
 
+    if (!isAuthenticated) {
+      initiateGitHubAuth();
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -85,7 +92,7 @@ function App() {
         setUsers([]);
       }
       
-      const result = await searchUsers(searchQuery, filters, pageNum, pageNum === 1);
+      const result = await searchUsers(searchQuery, filters, pageNum, pageNum === 1, token);
       
       if (pageNum === 1) {
         setUsers(result.items);
@@ -104,12 +111,10 @@ function App() {
     }
   };
 
-  const handleGitHubSignIn = () => {
-    const clientId = 'YOUR_GITHUB_CLIENT_ID';
-    const redirectUri = encodeURIComponent(window.location.origin);
-    const scope = encodeURIComponent('read:user user:email');
-    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
-    window.location.href = authUrl;
+  const handleLoadMore = () => {
+    if (!loading && hasMore) {
+      handleSearch(page + 1);
+    }
   };
 
   const handleLanguageClick = (language: string) => {
@@ -128,156 +133,103 @@ function App() {
     }
   };
 
-  const handleLoadMore = () => {
-    handleSearch(page + 1);
-  };
-
-  const showHero = !isAuthenticated && !hasSearched && users.length === 0;
-
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 backdrop-blur-sm bg-background/70 border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Github className="h-6 w-6" />
-              <h1 className="text-lg font-medium">GitHub User Search</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <ThemeToggle />
+      <nav className="border-b">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Github className="h-6 w-6" />
+            <span className="font-semibold text-lg">DevFinder</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <ThemeToggle />
+            {!isAuthenticated && !authLoading && (
               <button
-                onClick={handleGitHubSignIn}
-                className="geist-button-black"
+                onClick={() => initiateGitHubAuth()}
+                className="flex items-center space-x-2 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                <LogIn className="w-4 h-4 mr-2" />
-                Sign in with GitHub
+                <LogIn className="h-4 w-4" />
+                <span>Login with GitHub</span>
               </button>
-            </div>
+            )}
           </div>
         </div>
-      </header>
+      </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-6">
+      <main className="container mx-auto px-4 py-8">
+        {!hasSearched && <HeroSection />}
+
+        <div className="max-w-3xl mx-auto space-y-6">
           <div className="flex space-x-4">
             <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <Search className="text-secondary-foreground/60 h-4 w-4" />
-              </div>
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search GitHub users..."
-                className="geist-input pl-10"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Search GitHub users..."
+                className="w-full pl-10 pr-4 py-2 rounded-md border bg-background"
               />
             </div>
             <button
-              onClick={() => handleSearch(1)}
-              disabled={loading}
-              className="geist-button-black min-w-[100px]"
+              onClick={() => handleSearch()}
+              disabled={loading || (!isAuthenticated && !authLoading)}
+              className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <>
-                  <Search className="h-4 w-4 mr-2" />
-                  Search
-                </>
+                'Search'
               )}
             </button>
           </div>
 
-          <SearchFilters filters={filters} onFilterChange={(name, value) => {
-            setFilters(prev => ({ ...prev, [name]: value }));
-          }} />
-
-          {showHero && <HeroSection />}
-
           {error && (
-            <div className="geist-card p-4 text-red-600 text-sm">
+            <div className="p-4 rounded-md bg-destructive/10 text-destructive">
               {error}
             </div>
           )}
 
-          {sortedUsers.length > 0 && (
-            <div className="flex gap-6">
-              <div className="w-80 flex-shrink-0">
-                <SearchInsights 
-                  users={statsUsers.length > 0 ? statsUsers : sortedUsers}
-                  totalCount={totalCount}
-                  onLanguageClick={handleLanguageClick}
-                  onSeniorityClick={handleSeniorityClick}
-                  activeLanguage={activeLanguage}
-                  activeSeniorityLevel={activeSeniorityLevel}
+          {hasSearched && (
+            <>
+              <div className="grid gap-6 md:grid-cols-[240px_1fr]">
+                <SearchFilters
+                  filters={filters}
+                  setFilters={setFilters}
+                  onSearch={() => handleSearch()}
                 />
-              </div>
-              
-              <div className="flex-1 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-medium">
-                    Search Results
-                    {(activeLanguage || activeSeniorityLevel) && (
-                      <span className="ml-2 text-sm font-normal text-secondary-foreground">
-                        {activeLanguage && `filtered by ${activeLanguage}`}
-                        {activeSeniorityLevel && `filtered by ${activeSeniorityLevel} level`}
-                      </span>
-                    )}
-                  </h2>
-                  <span className="text-sm text-secondary-foreground">
-                    Showing {sortedUsers.length} of {totalCount.toLocaleString()} users
-                  </span>
-                </div>
-
-                <div className="space-y-4">
-                  {sortedUsers.map((user) => (
-                    <UserCard key={user.login} user={user} />
-                  ))}
-                </div>
-
-                {loading && (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-secondary-foreground" />
+                <div className="space-y-6">
+                  {users.length > 0 && (
+                    <SearchInsights
+                      users={statsUsers}
+                      activeLanguage={activeLanguage}
+                      setActiveLanguage={setActiveLanguage}
+                      activeSeniorityLevel={activeSeniorityLevel}
+                      setActiveSeniorityLevel={setActiveSeniorityLevel}
+                    />
+                  )}
+                  <div className="space-y-4">
+                    {sortedUsers.map((user) => (
+                      <UserCard key={user.id} user={user} />
+                    ))}
                   </div>
-                )}
-
-                {!loading && hasMore && users.length > 0 && !isAuthenticated && (
-                  <div className="geist-card p-8 text-center">
-                    <h3 className="text-lg font-medium mb-2">
-                      Want to see more results?
-                    </h3>
-                    <p className="text-secondary-foreground mb-6">
-                      Sign in with GitHub to increase your API rate limit and access more search results.
-                    </p>
-                    <button
-                      onClick={handleGitHubSignIn}
-                      className="geist-button-black"
-                    >
-                      <LogIn className="w-4 h-4 mr-2" />
-                      Sign in with GitHub
-                    </button>
-                  </div>
-                )}
-
-                {!loading && hasMore && users.length > 0 && isAuthenticated && (
-                  <div className="flex justify-center py-4">
+                  {hasMore && (
                     <button
                       onClick={handleLoadMore}
-                      className="geist-button-white"
+                      disabled={loading}
+                      className="w-full py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90 disabled:opacity-50"
                     >
-                      Load More Results
+                      {loading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                      ) : (
+                        'Load More'
+                      )}
                     </button>
-                  </div>
-                )}
-
-                {!loading && !hasMore && users.length > 0 && (
-                  <p className="text-center text-secondary-foreground py-4">
-                    No more results to load
-                  </p>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
       </main>
